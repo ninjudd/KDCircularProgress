@@ -26,7 +26,7 @@ private extension Comparable {
 }
 
 @IBDesignable
-public class KDCircularProgress: UIView, CAAnimationDelegate {
+public class KDCircularProgress: UIView {
     private enum Conversion {
         static func degreesToRadians (value:CGFloat) -> CGFloat {
             return value * .pi / 180.0
@@ -184,9 +184,7 @@ public class KDCircularProgress: UIView, CAAnimationDelegate {
     @objc @IBInspectable private var IBColor1: UIColor?
     @objc @IBInspectable private var IBColor2: UIColor?
     @objc @IBInspectable private var IBColor3: UIColor?
-    
-    private var animationCompletionBlock: ((Bool) -> Void)?
-    
+
     override public init(frame: CGRect) {
         super.init(frame: frame)
         setInitialValues()
@@ -254,7 +252,7 @@ public class KDCircularProgress: UIView, CAAnimationDelegate {
         progressLayer.colorsArray = colors
         progressLayer.setNeedsDisplay()
     }
-    
+
     public func animate(fromAngle: Double, toAngle: Double, duration: TimeInterval, relativeDuration: Bool = true, completion: ((Bool) -> Void)?) {
         if isAnimating() {
             pauseAnimation()
@@ -268,16 +266,17 @@ public class KDCircularProgress: UIView, CAAnimationDelegate {
             let scaledDuration = (TimeInterval(traveledAngle) * duration) / 360
             animationDuration = scaledDuration
         }
-        
+
         let animation = CABasicAnimation(keyPath: "angle")
         animation.fromValue = fromAngle
         animation.toValue = toAngle
         animation.duration = animationDuration
-        animation.delegate = self
+        if let completion = completion {
+            animation.delegate = Delegate(completionBlock: completion)
+        }
         animation.isRemovedOnCompletion = false
         angle = toAngle
-        animationCompletionBlock = completion
-        
+
         progressLayer.add(animation, forKey: "angle")
     }
     
@@ -304,11 +303,16 @@ public class KDCircularProgress: UIView, CAAnimationDelegate {
     public func isAnimating() -> Bool {
         return progressLayer.animation(forKey: "angle") != nil
     }
-    
-    public func animationDidStop(_ anim: CAAnimation, finished flag: Bool) {
-        if let completionBlock = animationCompletionBlock {
-            animationCompletionBlock = nil
-            completionBlock(flag)
+
+    class Delegate: NSObject, CAAnimationDelegate {
+        let completionBlock: (Bool) -> Void
+
+        init(completionBlock: @escaping (Bool) -> Void) {
+            self.completionBlock = completionBlock
+        }
+
+        public func animationDidStop(_ anim: CAAnimation, finished: Bool) {
+            completionBlock(finished)
         }
     }
     
